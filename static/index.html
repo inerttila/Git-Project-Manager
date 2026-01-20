@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Git Project Manager</title>
+    <link rel="icon" href="https://skaitech.al/wp-content/uploads/2024/03/icons8-source-code-100.png" type="image/png">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Git Project Manager</h1>
+            <div class="header-buttons">
+                <button class="btn-odoo" onclick="openOdooConfig()">Odoo Config</button>
+                <button class="btn-add" onclick="showAddProjectModal()">+ Add Project</button>
+            </div>
+        </header>
+
+        <div id="projects-container" class="projects-grid">
+            <!-- Projects will be loaded here -->
+        </div>
+    </div>
+
+    <!-- Notification Container -->
+    <div id="notification" class="notification"></div>
+
+    <!-- Add Project Modal -->
+    <div id="addProjectModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeAddProjectModal()">&times;</span>
+            <h2>Add New Project</h2>
+            <form id="addProjectForm" onsubmit="addProject(event)">
+                <div class="form-group">
+                    <label for="projectPath">Project Path:</label>
+                    <input type="text" id="projectPath" placeholder="C:\Users\username\projects\myproject" required>
+                </div>
+                <button type="submit" class="btn-primary">Add Project</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Project Actions Modal -->
+    <div id="actionsModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeActionsModal()">&times;</span>
+            <h2 id="projectNameTitle">Project Actions</h2>
+            <div class="actions-container">
+                <button class="action-btn" onclick="showGitStatus()">
+                    <span class="icon">📊</span>
+                    <span>Show Git Status</span>
+                </button>
+                <button class="action-btn" onclick="showCheckoutModal()">
+                    <span class="icon">🔄</span>
+                    <span>Switch Branch</span>
+                </button>
+                <button class="action-btn" onclick="gitPull()">
+                    <span class="icon">⬇️</span>
+                    <span>Pull Changes</span>
+                </button>
+            </div>
+            <div id="gitOutput" class="git-output"></div>
+        </div>
+    </div>
+
+    <!-- Checkout Branch Modal -->
+    <div id="checkoutModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeCheckoutModal()">&times;</span>
+            <h2>Switch Branch</h2>
+            <form id="checkoutForm" onsubmit="checkoutBranch(event)">
+                <div class="form-group">
+                    <label for="branchName">Branch Name:</label>
+                    <input type="text" id="branchName" placeholder="main" required>
+                </div>
+                <button type="submit" class="btn-primary">Switch Branch</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="/static/script.js"></script>
+</body>
+</html>
