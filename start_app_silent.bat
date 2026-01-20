@@ -1,13 +1,6 @@
 @echo off
 cd /d "%~dp0"
 
-REM Check if virtual environment exists
-if exist "venv\Scripts\activate.bat" (
-    call venv\Scripts\activate.bat
-) else if exist "env\Scripts\activate.bat" (
-    call env\Scripts\activate.bat
-)
-
 REM Check if Python is available
 python --version >nul 2>&1
 if errorlevel 1 (

@@ -5,17 +5,6 @@ title Git Project Manager
 echo Starting Git Project Manager...
 echo.
 
-REM Check if virtual environment exists
-if exist "venv\Scripts\activate.bat" (
-    echo Activating virtual environment...
-    call venv\Scripts\activate.bat
-) else if exist "env\Scripts\activate.bat" (
-    echo Activating virtual environment...
-    call env\Scripts\activate.bat
-) else (
-    echo No virtual environment found, using system Python...
-)
-
 REM Check if Python is available
 python --version >nul 2>&1
 if errorlevel 1 (

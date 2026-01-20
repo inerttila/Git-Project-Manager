@@ -52,8 +52,19 @@ function showProjectMenu(projectId, event) {
     
     // Get project data
     const project = projects[projectId];
-    const hasGitLab = project.git_remote_url && 
-                      (project.git_remote_url.includes('gitlab.com') || project.git_remote_url.includes('gitlab'));
+    const hasGitRemote = project.git_remote_url && project.git_remote_url.trim() !== '';
+    
+    // Determine the Git hosting platform for display
+    let gitPlatformName = 'Git';
+    if (project.git_remote_url) {
+        if (project.git_remote_url.includes('github.com')) {
+            gitPlatformName = 'GitHub';
+        } else if (project.git_remote_url.includes('gitlab.com') || project.git_remote_url.includes('gitlab')) {
+            gitPlatformName = 'GitLab';
+        } else if (project.git_remote_url.includes('bitbucket.org')) {
+            gitPlatformName = 'Bitbucket';
+        }
+    }
     
     // Create menu dropdown
     const menu = document.createElement('div');
@@ -63,10 +74,10 @@ function showProjectMenu(projectId, event) {
             <span>💻</span>
             <span>Open Cursor</span>
         </div>
-        ${hasGitLab ? `
-        <div class="menu-item" onclick="openGitLab(${projectId})">
+        ${hasGitRemote ? `
+        <div class="menu-item" onclick="openGitRepository(${projectId})">
             <span>🔗</span>
-            <span>Open on GitLab</span>
+            <span>Open on ${gitPlatformName}</span>
         </div>
         ` : ''}
         <div class="menu-item" onclick="deleteProject(${projectId})">
@@ -95,8 +106,8 @@ function showProjectMenu(projectId, event) {
     }, 10);
 }
 
-// Open GitLab in browser
-function openGitLab(projectId) {
+// Open Git repository in browser (GitHub, GitLab, Bitbucket, etc.)
+function openGitRepository(projectId) {
     // Remove menu if open
     const menu = document.querySelector('.project-menu-dropdown');
     if (menu) menu.remove();
@@ -104,11 +115,22 @@ function openGitLab(projectId) {
     const project = projects[projectId];
     
     if (project && project.git_remote_url) {
-        // Open GitLab URL in browser
+        // Open Git repository URL in browser
         window.open(project.git_remote_url, '_blank');
-        showNotification('Opening GitLab...', 'success');
+        
+        // Determine platform for notification
+        let platformName = 'repository';
+        if (project.git_remote_url.includes('github.com')) {
+            platformName = 'GitHub';
+        } else if (project.git_remote_url.includes('gitlab.com') || project.git_remote_url.includes('gitlab')) {
+            platformName = 'GitLab';
+        } else if (project.git_remote_url.includes('bitbucket.org')) {
+            platformName = 'Bitbucket';
+        }
+        
+        showNotification(`Opening ${platformName}...`, 'success');
     } else {
-        showNotification('GitLab URL not found for this project', 'error');
+        showNotification('Git repository URL not found for this project', 'error');
     }
 }
 
