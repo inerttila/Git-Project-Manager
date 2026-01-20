@@ -218,6 +218,53 @@ h1 {
     max-width: 450px;
 }
 
+/* Swipe Container Styles */
+.swipe-indicators {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    padding: 15px 0 10px;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.swipe-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #d1d5db;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.swipe-dot.active {
+    background: #9ca3af;
+    width: 24px;
+    border-radius: 4px;
+}
+
+.swipe-container {
+    position: relative;
+    overflow: hidden;
+    width: 100%;
+    cursor: grab;
+    user-select: none;
+}
+
+.swipe-container:active {
+    cursor: grabbing;
+}
+
+.swipe-page {
+    display: none;
+    padding: 30px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.swipe-page.active {
+    display: block;
+}
+
 @keyframes slideIn {
     from {
         transform: translateY(-30px) scale(0.95);

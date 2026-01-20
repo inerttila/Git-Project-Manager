@@ -5,7 +5,10 @@ A web application to manage multiple Git projects from a single interface. Add y
 
 ## Usage
 
-1. **Add a Project**: Click the "+ Add Project" button and enter the full path to your project directory.
+1. **Add a Project**: Click the "+ Add Project" button:
+   - **Swipe/Drag** or click dots to switch between pages
+   - **Page 1**: Add existing project by entering its path
+   - **Page 2**: Clone from URL - enter clone path + repository URL (GitHub/GitLab/etc.)
 
 2. **View Project Actions**: Click on any project card (or the three dots menu) to see available Git operations.
    - You can also **drag & drop cards** to reorder them (order is saved).
@@ -21,6 +24,7 @@ A web application to manage multiple Git projects from a single interface. Add y
 
 - `GET /api/projects` - Get all projects
 - `POST /api/projects` - Add a new project
+- `POST /api/projects/clone` - Clone repository and add as project
 - `DELETE /api/projects/<id>` - Delete a project
 - `GET /api/projects/<id>/git-status` - Get Git status
 - `POST /api/projects/<id>/checkout` - Switch branch

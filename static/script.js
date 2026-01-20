@@ -276,12 +276,116 @@ async function deleteProject(projectId) {
 function showAddProjectModal() {
     document.getElementById('addProjectModal').style.display = 'block';
     document.getElementById('projectPath').value = '';
+    document.getElementById('clonePath').value = '';
+    document.getElementById('cloneUrl').value = '';
+    switchSwipePage(0); // Reset to first page
 }
 
 // Close add project modal
 function closeAddProjectModal() {
     document.getElementById('addProjectModal').style.display = 'none';
 }
+
+// Swipe page management
+let currentSwipePage = 0;
+let swipeStartX = 0;
+let swipeStartY = 0;
+let isSwiping = false;
+
+function switchSwipePage(pageIndex) {
+    currentSwipePage = pageIndex;
+    const pages = document.querySelectorAll('.swipe-page');
+    const dots = document.querySelectorAll('.swipe-dot');
+    
+    pages.forEach((page, index) => {
+        page.classList.toggle('active', index === pageIndex);
+    });
+    
+    dots.forEach((dot, index) => {
+        dot.classList.toggle('active', index === pageIndex);
+    });
+}
+
+// Initialize swipe functionality
+document.addEventListener('DOMContentLoaded', () => {
+    const swipeContainer = document.getElementById('addProjectSwipeContainer');
+    if (!swipeContainer) return;
+    
+    // Touch events for mobile
+    swipeContainer.addEventListener('touchstart', (e) => {
+        swipeStartX = e.touches[0].clientX;
+        swipeStartY = e.touches[0].clientY;
+        isSwiping = true;
+    });
+    
+    swipeContainer.addEventListener('touchmove', (e) => {
+        if (!isSwiping) return;
+        e.preventDefault();
+    });
+    
+    swipeContainer.addEventListener('touchend', (e) => {
+        if (!isSwiping) return;
+        isSwiping = false;
+        
+        const swipeEndX = e.changedTouches[0].clientX;
+        const swipeEndY = e.changedTouches[0].clientY;
+        const diffX = swipeStartX - swipeEndX;
+        const diffY = swipeStartY - swipeEndY;
+        
+        // Only swipe if horizontal movement is greater than vertical (to avoid conflicts with scrolling)
+        if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 50) {
+            if (diffX > 0 && currentSwipePage < 1) {
+                // Swipe left - go to next page
+                switchSwipePage(currentSwipePage + 1);
+            } else if (diffX < 0 && currentSwipePage > 0) {
+                // Swipe right - go to previous page
+                switchSwipePage(currentSwipePage - 1);
+            }
+        }
+    });
+    
+    // Mouse events for desktop
+    swipeContainer.addEventListener('mousedown', (e) => {
+        swipeStartX = e.clientX;
+        swipeStartY = e.clientY;
+        isSwiping = true;
+        swipeContainer.style.cursor = 'grabbing';
+    });
+    
+    swipeContainer.addEventListener('mousemove', (e) => {
+        if (!isSwiping) return;
+        e.preventDefault();
+    });
+    
+    swipeContainer.addEventListener('mouseup', (e) => {
+        if (!isSwiping) return;
+        isSwiping = false;
+        swipeContainer.style.cursor = 'grab';
+        
+        const swipeEndX = e.clientX;
+        const swipeEndY = e.clientY;
+        const diffX = swipeStartX - swipeEndX;
+        const diffY = swipeStartY - swipeEndY;
+        
+        if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 50) {
+            if (diffX > 0 && currentSwipePage < 1) {
+                switchSwipePage(currentSwipePage + 1);
+            } else if (diffX < 0 && currentSwipePage > 0) {
+                switchSwipePage(currentSwipePage - 1);
+            }
+        }
+    });
+    
+    swipeContainer.addEventListener('mouseleave', () => {
+        isSwiping = false;
+        swipeContainer.style.cursor = 'grab';
+    });
+    
+    // Click on dots to switch pages
+    document.querySelectorAll('.swipe-dot').forEach((dot, index) => {
+        dot.addEventListener('click', () => switchSwipePage(index));
+    });
+});
 
 // Add new project
 async function addProject(event) {
@@ -314,6 +418,52 @@ async function addProject(event) {
     } catch (error) {
         console.error('Error adding project:', error);
         showNotification('Failed to add project', 'error');
+    }
+}
+
+// Clone project from URL
+async function cloneProject(event) {
+    event.preventDefault();
+    const clonePath = document.getElementById('clonePath').value.trim();
+    const cloneUrl = document.getElementById('cloneUrl').value.trim();
+    
+    if (!clonePath) {
+        showNotification('Please enter a path to clone to', 'error');
+        return;
+    }
+    
+    if (!cloneUrl) {
+        showNotification('Please enter a repository URL', 'error');
+        return;
+    }
+    
+    try {
+        showNotification('Cloning repository...', 'info');
+        
+        const response = await fetch(`${API_BASE}/projects/clone`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ 
+                clone_path: clonePath,
+                repository_url: cloneUrl
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+            showNotification(data.error || 'Failed to clone project', 'error');
+            return;
+        }
+        
+        closeAddProjectModal();
+        showNotification('Project cloned and added successfully', 'success');
+        loadProjects();
+    } catch (error) {
+        console.error('Error cloning project:', error);
+        showNotification('Failed to clone project', 'error');
     }
 }
 

@@ -30,13 +30,41 @@
         <div class="modal-content">
             <span class="close" onclick="closeAddProjectModal()">&times;</span>
             <h2>Add New Project</h2>
-            <form id="addProjectForm" onsubmit="addProject(event)">
-                <div class="form-group">
-                    <label for="projectPath">Project Path:</label>
-                    <input type="text" id="projectPath" placeholder="C:\Users\username\projects\myproject" required>
+            
+            <!-- Swipe Indicator Dots -->
+            <div class="swipe-indicators">
+                <span class="swipe-dot active" data-page="0"></span>
+                <span class="swipe-dot" data-page="1"></span>
+            </div>
+            
+            <!-- Swipeable Container -->
+            <div class="swipe-container" id="addProjectSwipeContainer">
+                <!-- Page 1: Add by Path -->
+                <div class="swipe-page active">
+                    <form id="addProjectForm" onsubmit="addProject(event)">
+                        <div class="form-group">
+                            <label for="projectPath">Project Path:</label>
+                            <input type="text" id="projectPath" placeholder="C:\Users\username\projects\myproject" required>
+                        </div>
+                        <button type="submit" class="btn-primary">Add Project</button>
+                    </form>
                 </div>
-                <button type="submit" class="btn-primary">Add Project</button>
-            </form>
+                
+                <!-- Page 2: Clone from URL -->
+                <div class="swipe-page">
+                    <form id="cloneProjectForm" onsubmit="cloneProject(event)">
+                        <div class="form-group">
+                            <label for="clonePath">Clone To Path:</label>
+                            <input type="text" id="clonePath" placeholder="C:\Users\username\projects" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="cloneUrl">Repository URL:</label>
+                            <input type="text" id="cloneUrl" placeholder="https://github.com/user/repo.git" required>
+                        </div>
+                        <button type="submit" class="btn-primary">Clone & Add Project</button>
+                    </form>
+                </div>
+            </div>
         </div>
     </div>
 

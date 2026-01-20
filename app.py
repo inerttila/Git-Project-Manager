@@ -194,6 +194,86 @@ def add_project():
     
     return jsonify(response_data), 201
 
+@app.route('/api/projects/clone', methods=['POST'])
+def clone_project():
+    """Clone a Git repository and add it as a project"""
+    data = request.json
+    clone_path = data.get('clone_path', '').strip()
+    repository_url = data.get('repository_url', '').strip()
+    
+    if not clone_path:
+        return jsonify({'error': 'Clone path is required'}), 400
+    
+    if not repository_url:
+        return jsonify({'error': 'Repository URL is required'}), 400
+    
+    # Normalize path
+    clone_path = os.path.normpath(clone_path)
+    
+    if not os.path.exists(clone_path):
+        return jsonify({'error': 'Clone path does not exist'}), 400
+    
+    if not os.path.isdir(clone_path):
+        return jsonify({'error': 'Clone path must be a directory'}), 400
+    
+    # Extract repository name from URL
+    repo_name = repository_url.rstrip('/').split('/')[-1]
+    if repo_name.endswith('.git'):
+        repo_name = repo_name[:-4]
+    
+    # Full path where the repository will be cloned
+    project_path = os.path.join(clone_path, repo_name)
+    
+    # Check if project already exists
+    projects = load_projects()
+    if any(p['path'] == project_path for p in projects):
+        return jsonify({'error': 'Project already exists'}), 400
+    
+    # Check if directory already exists
+    if os.path.exists(project_path):
+        return jsonify({'error': f'Directory {project_path} already exists'}), 400
+    
+    try:
+        # Clone the repository
+        result = subprocess.run(
+            ['git', 'clone', repository_url, project_path],
+            capture_output=True,
+            text=True,
+            timeout=300,  # 5 minutes timeout
+            creationflags=CREATE_NO_WINDOW
+        )
+        
+        if result.returncode != 0:
+            return jsonify({
+                'error': 'Failed to clone repository',
+                'message': result.stderr
+            }), 400
+        
+        # Get git remote URL (should be the same as what we cloned)
+        git_remote_url = get_git_remote_url(project_path)
+        
+        # Add project to list
+        project_data = {'path': project_path}
+        if git_remote_url:
+            project_data['git_remote_url'] = git_remote_url
+        
+        projects.append(project_data)
+        save_projects(projects)
+        
+        response_data = {
+            'path': project_path,
+            'name': get_project_name(project_path)
+        }
+        if git_remote_url:
+            response_data['git_remote_url'] = git_remote_url
+        
+        return jsonify(response_data), 201
+        
+    except subprocess.TimeoutExpired:
+        return jsonify({'error': 'Clone operation timed out'}), 500
+    except Exception as e:
+        return jsonify({'error': f'Error cloning repository: {str(e)}'}), 500
+
 @app.route('/api/projects/<int:project_id>', methods=['DELETE'])
 def delete_project(project_id):
     """Delete a project"""
