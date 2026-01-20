@@ -75,16 +75,28 @@
             <h2 id="projectNameTitle">Project Actions</h2>
             <div class="actions-container">
                 <button class="action-btn" onclick="showGitStatus()">
-                    <span class="icon">📊</span>
-                    <span>Show Git Status</span>
+                    <div class="action-icon">📊</div>
+                    <div class="action-content">
+                        <div class="action-title">Show Git Status</div>
+                        <div class="action-desc">View branch and repository status</div>
+                    </div>
+                    <div class="action-arrow">→</div>
                 </button>
                 <button class="action-btn" onclick="showCheckoutModal()">
-                    <span class="icon">🔄</span>
-                    <span>Switch Branch</span>
+                    <div class="action-icon">🔄</div>
+                    <div class="action-content">
+                        <div class="action-title">Switch Branch</div>
+                        <div class="action-desc">Checkout a different branch</div>
+                    </div>
+                    <div class="action-arrow">→</div>
                 </button>
                 <button class="action-btn" onclick="gitPull()">
-                    <span class="icon">⬇️</span>
-                    <span>Pull Changes</span>
+                    <div class="action-icon">⬇️</div>
+                    <div class="action-content">
+                        <div class="action-title">Pull Changes</div>
+                        <div class="action-desc">Fetch and merge from remote</div>
+                    </div>
+                    <div class="action-arrow">→</div>
                 </button>
             </div>
             <div id="gitOutput" class="git-output"></div>
