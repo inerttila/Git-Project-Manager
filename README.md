@@ -2,37 +2,6 @@
 
 A web application to manage multiple Git projects from a single interface. Add your local project directories and perform Git operations like checking status, switching branches, and pulling changes.
 
-## Features
-
-- 📁 Add and manage multiple project directories
-- 📊 View Git status and current branch
-- 🔄 Switch between Git branches
-- ⬇️ Pull changes from remote repository
-- 🎨 Modern, responsive UI
-
-## Requirements
-
-- Python 3.7+
-- Git installed on your system
-
-## Installation
-
-1. Install Python dependencies:
-```bash
-pip install -r requirements.txt
-```
-
-## Running the Application
-
-1. Start the Flask server:
-```bash
-python app.py
-```
-
-2. Open your web browser and navigate to:
-```
-http://localhost:5000
-```
 
 ## Usage
 
