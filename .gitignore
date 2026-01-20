@@ -9,3 +9,4 @@ ENV/
 projects.json
 .DS_Store
 *.log
+settings.json

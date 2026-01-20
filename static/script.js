@@ -2,6 +2,7 @@ const API_BASE = 'http://localhost:5000/api';
 
 let currentProjectId = null;
 let projects = [];
+let draggingProjectIndex = null;
 
 // Load projects on page load
 document.addEventListener('DOMContentLoaded', () => {
@@ -30,13 +31,101 @@ function renderProjects() {
     }
     
     container.innerHTML = projects.map((project, index) => `
-        <div class="project-card" onclick="openProjectActions(${index})">
+        <div class="project-card" 
+             draggable="true"
+             data-project-index="${index}"
+             onclick="openProjectActions(${index})"
+             ondragstart="handleDragStart(event, ${index})"
+             ondragover="handleDragOver(event, ${index})"
+             ondragleave="handleDragLeave(event)"
+             ondrop="handleDrop(event, ${index})"
+             ondragend="handleDragEnd(event)">
             <div class="project-menu" onclick="event.stopPropagation(); showProjectMenu(${index}, event)">⋯</div>
             <div class="project-icon">📁</div>
             <div class="project-name">${escapeHtml(project.name)}</div>
             <div class="project-path">${escapeHtml(project.path)}</div>
         </div>
     `).join('');
+}
+
+function handleDragStart(event, projectIndex) {
+    // Close menu if open
+    const menu = document.querySelector('.project-menu-dropdown');
+    if (menu) menu.remove();
+
+    draggingProjectIndex = projectIndex;
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', String(projectIndex));
+
+    const card = event.currentTarget;
+    card.classList.add('dragging');
+}
+
+function handleDragOver(event, overIndex) {
+    // Allow drop
+    event.preventDefault();
+
+    const card = event.currentTarget;
+    // Don’t highlight the card we’re currently dragging
+    if (draggingProjectIndex !== null && overIndex !== draggingProjectIndex) {
+        card.classList.add('drag-over');
+    }
+}
+
+function handleDragLeave(event) {
+    const card = event.currentTarget;
+    card.classList.remove('drag-over');
+}
+
+async function handleDrop(event, dropIndex) {
+    event.preventDefault();
+
+    const card = event.currentTarget;
+    card.classList.remove('drag-over');
+
+    const fromIndexRaw = event.dataTransfer.getData('text/plain');
+    const fromIndex = Number(fromIndexRaw);
+
+    if (!Number.isInteger(fromIndex) || fromIndex < 0 || fromIndex >= projects.length) return;
+    if (dropIndex === fromIndex) return;
+
+    // Reorder locally (move item)
+    const [moved] = projects.splice(fromIndex, 1);
+    projects.splice(dropIndex, 0, moved);
+
+    // Re-render to reflect new order + correct indexes / handlers
+    renderProjects();
+
+    // Persist order to backend (stable key: path)
+    try {
+        await persistProjectOrder();
+    } catch (e) {
+        console.error('Failed to persist project order:', e);
+        showNotification('Order changed (not saved)', 'error');
+    }
+}
+
+function handleDragEnd(event) {
+    draggingProjectIndex = null;
+
+    // Remove visual state
+    document.querySelectorAll('.project-card.drag-over').forEach(el => el.classList.remove('drag-over'));
+    const card = event.currentTarget;
+    card.classList.remove('dragging');
+}
+
+async function persistProjectOrder() {
+    const orderedPaths = projects.map(p => p.path);
+    const response = await fetch(`${API_BASE}/projects/reorder`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ordered_paths: orderedPaths })
+    });
+
+    if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to save order');
+    }
 }
 
 // Show project menu (delete option)
@@ -378,15 +467,78 @@ function showNotification(message, type = 'info') {
     }, 3000);
 }
 
+// Show Odoo Config Path Modal
+function showOdooConfigModal() {
+    document.getElementById('odooConfigModal').style.display = 'block';
+    document.getElementById('odooConfigPath').value = '';
+}
+
+// Close Odoo Config Path Modal
+function closeOdooConfigModal() {
+    document.getElementById('odooConfigModal').style.display = 'none';
+}
+
+// Save Odoo Config Path and open file
+async function saveOdooConfigPath(event) {
+    event.preventDefault();
+    const path = document.getElementById('odooConfigPath').value.trim();
+    
+    if (!path) {
+        showNotification('Please enter a path to odoo.conf', 'error');
+        return;
+    }
+    
+    try {
+        // Save the path
+        const saveRes = await fetch(`${API_BASE}/settings/odoo-config-path`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ odoo_config_path: path })
+        });
+
+        const saveData = await saveRes.json();
+        if (!saveRes.ok) {
+            showNotification(saveData.error || 'Failed to save Odoo config path', 'error');
+            return;
+        }
+
+        // Close modal
+        closeOdooConfigModal();
+
+        // Open the file
+        const response = await fetch(`${API_BASE}/open-odoo-config`, { method: 'POST' });
+        const data = await response.json();
+
+        if (response.ok) {
+            showNotification('Opening Odoo config in Cursor...', 'success');
+        } else {
+            showNotification(data.error || 'Failed to open Odoo config', 'error');
+        }
+    } catch (error) {
+        console.error('Error saving Odoo config path:', error);
+        showNotification('Failed to save Odoo config path', 'error');
+    }
+}
+
 // Open Odoo config file in Cursor
 async function openOdooConfig() {
     try {
-        const response = await fetch(`${API_BASE}/open-odoo-config`, {
-            method: 'POST'
-        });
-        
+        // Check if path is already saved
+        const settingsRes = await fetch(`${API_BASE}/settings/odoo-config-path`);
+        const settingsData = await settingsRes.json();
+
+        const odooPath = settingsData.odoo_config_path;
+
+        // First time: show modal to ask user for path
+        if (!odooPath) {
+            showOdooConfigModal();
+            return;
+        }
+
+        // Open using saved path
+        const response = await fetch(`${API_BASE}/open-odoo-config`, { method: 'POST' });
         const data = await response.json();
-        
+
         if (response.ok) {
             showNotification('Opening Odoo config in Cursor...', 'success');
         } else {

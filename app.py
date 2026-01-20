@@ -21,6 +21,23 @@ CORS(app)
 
 # File to store projects
 PROJECTS_FILE = 'projects.json'
+SETTINGS_FILE = 'settings.json'
+
+def load_settings():
+    """Load settings from JSON file"""
+    if os.path.exists(SETTINGS_FILE):
+        try:
+            with open(SETTINGS_FILE, 'r') as f:
+                data = json.load(f)
+                return data if isinstance(data, dict) else {}
+        except Exception:
+            return {}
+    return {}
+
+def save_settings(settings):
+    """Save settings to JSON file"""
+    with open(SETTINGS_FILE, 'w') as f:
+        json.dump(settings, f, indent=2)
 
 def load_projects():
     """Load projects from JSON file"""
@@ -189,6 +206,40 @@ def delete_project(project_id):
     save_projects(projects)
     
     return jsonify({'message': 'Project deleted'}), 200
+
+@app.route('/api/projects/reorder', methods=['POST'])
+def reorder_projects():
+    """Reorder projects based on an ordered list of project paths"""
+    data = request.json or {}
+    ordered_paths = data.get('ordered_paths', [])
+
+    if not isinstance(ordered_paths, list) or not all(isinstance(p, str) for p in ordered_paths):
+        return jsonify({'error': 'ordered_paths must be a list of strings'}), 400
+
+    projects = load_projects()
+
+    # Build lookup by path for stable ordering
+    by_path = {p.get('path'): p for p in projects if isinstance(p, dict) and p.get('path')}
+
+    reordered = []
+    seen = set()
+
+    # Add in requested order (only if path exists in current projects)
+    for path in ordered_paths:
+        proj = by_path.get(path)
+        if proj and path not in seen:
+            reordered.append(proj)
+            seen.add(path)
+
+    # Append any projects not included (e.g., new ones) to keep them from disappearing
+    for proj in projects:
+        path = proj.get('path') if isinstance(proj, dict) else None
+        if path and path not in seen:
+            reordered.append(proj)
+            seen.add(path)
+
+    save_projects(reordered)
+    return jsonify({'message': 'Projects reordered'}), 200
 
 @app.route('/api/projects/<int:project_id>/git-status', methods=['GET'])
 def git_status(project_id):
@@ -498,7 +549,11 @@ def open_cursor(project_id):
 @app.route('/api/open-odoo-config', methods=['POST'])
 def open_odoo_config():
     """Open Odoo config file in Cursor"""
-    odoo_config_path = r'C:\Users\i.tila\Documents\Odoo17\server\odoo.conf'
+    settings = load_settings()
+    odoo_config_path = settings.get('odoo_config_path')
+
+    if not odoo_config_path:
+        return jsonify({'error': 'Odoo config path not set'}), 400
     
     if not os.path.exists(odoo_config_path):
         return jsonify({'error': 'Odoo config file not found at the specified path'}), 404
@@ -557,6 +612,33 @@ def open_odoo_config():
                 }), 400
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+@app.route('/api/settings/odoo-config-path', methods=['GET'])
+def get_odoo_config_path():
+    """Get saved Odoo config path"""
+    settings = load_settings()
+    return jsonify({'odoo_config_path': settings.get('odoo_config_path')}), 200
+
+@app.route('/api/settings/odoo-config-path', methods=['POST'])
+def set_odoo_config_path():
+    """Set and save Odoo config path"""
+    data = request.json or {}
+    path = data.get('odoo_config_path', '').strip()
+
+    if not path:
+        return jsonify({'error': 'odoo_config_path is required'}), 400
+
+    # Normalize path (Windows-friendly)
+    path = os.path.normpath(path)
+
+    if not os.path.exists(path):
+        return jsonify({'error': 'Odoo config file not found at the specified path'}), 404
+
+    settings = load_settings()
+    settings['odoo_config_path'] = path
+    save_settings(settings)
+
+    return jsonify({'message': 'Odoo config path saved', 'odoo_config_path': path}), 200
 
 @app.route('/api/path/resolve', methods=['POST'])
 def resolve_path():

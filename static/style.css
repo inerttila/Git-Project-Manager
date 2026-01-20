@@ -93,6 +93,16 @@ h1 {
     align-items: flex-start;
 }
 
+.project-card.dragging {
+    opacity: 0.6;
+    transform: scale(0.98);
+}
+
+.project-card.drag-over {
+    outline: 2px dashed #9ca3af;
+    outline-offset: 4px;
+}
+
 .project-icon {
     font-size: 2rem;
     margin-bottom: 8px;
@@ -202,6 +212,10 @@ h1 {
     animation: slideIn 0.3s ease;
     overflow: hidden;
     position: relative;
+}
+
+#odooConfigModal .modal-content {
+    max-width: 450px;
 }
 
 @keyframes slideIn {

@@ -78,6 +78,21 @@
         </div>
     </div>
 
+    <!-- Odoo Config Path Modal -->
+    <div id="odooConfigModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeOdooConfigModal()">&times;</span>
+            <h2>Odoo Config Path</h2>
+            <form id="odooConfigForm" onsubmit="saveOdooConfigPath(event)">
+                <div class="form-group">
+                    <label for="odooConfigPath">Enter full path to your odoo.conf:</label>
+                    <input type="text" id="odooConfigPath" placeholder="C:\Users\username\Documents\Odoo17\server\odoo.conf" required>
+                </div>
+                <button type="submit" class="btn-primary">Save & Open</button>
+            </form>
+        </div>
+    </div>
+
     <script src="/static/script.js"></script>
 </body>
 </html>
