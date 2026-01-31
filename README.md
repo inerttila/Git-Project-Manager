@@ -1,4 +1,4 @@
-# Git Project Manager
+# ![Inventory Management System UI](https://media2.giphy.com/media/QssGEmpkyEOhBCb7e1/giphy.gif?cid=ecf05e47a0n3gi1bfqntqmob8g9aid1oyj2wr3ds3mg700bl&amp;rid=giphy.gif) Git Project Manager
 
 A web application to manage multiple Git projects from a single interface. Add your local project directories and perform Git operations like checking status, switching branches, and pulling changes.
 
@@ -39,4 +39,5 @@ A web application to manage multiple Git projects from a single interface. Add y
 - Settings (like Odoo config path) are stored in `settings.json`
 - The application verifies that project paths exist before adding them
 - All Git operations are executed in the project's directory
+
 - "Open on GitHub/GitLab" is detected from the repo remote URL
