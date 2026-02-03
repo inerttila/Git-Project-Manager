@@ -6,11 +6,13 @@ import subprocess
 import platform
 from pathlib import Path
 
-# Get creation flags for Windows to hide console windows
+# Get creation flags for Windows
 if platform.system() == 'Windows':
     CREATE_NO_WINDOW = subprocess.CREATE_NO_WINDOW
+    CREATE_NEW_CONSOLE = 0x00000010  # New console window for terminal
 else:
     CREATE_NO_WINDOW = 0
+    CREATE_NEW_CONSOLE = 0
 
 # Get the directory where this script is located
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -24,7 +26,6 @@ PROJECTS_FILE = 'projects.json'
 SETTINGS_FILE = 'settings.json'
 
 def load_settings():
-    """Load settings from JSON file"""
     if os.path.exists(SETTINGS_FILE):
         try:
             with open(SETTINGS_FILE, 'r') as f:
@@ -35,28 +36,23 @@ def load_settings():
     return {}
 
 def save_settings(settings):
-    """Save settings to JSON file"""
     with open(SETTINGS_FILE, 'w') as f:
         json.dump(settings, f, indent=2)
 
 def load_projects():
-    """Load projects from JSON file"""
     if os.path.exists(PROJECTS_FILE):
         with open(PROJECTS_FILE, 'r') as f:
             return json.load(f)
     return []
 
 def save_projects(projects):
-    """Save projects to JSON file"""
     with open(PROJECTS_FILE, 'w') as f:
         json.dump(projects, f, indent=2)
 
 def get_project_name(path):
-    """Extract project name from path"""
     return os.path.basename(path.rstrip('/\\'))
 
 def get_git_remote_url(project_path):
-    """Get Git remote URL from project path"""
     if not os.path.exists(project_path):
         return None
     
@@ -123,7 +119,6 @@ def index():
 
 @app.route('/api/projects', methods=['GET'])
 def get_projects():
-    """Get all projects"""
     projects = load_projects()
     # Verify projects still exist and get their names
     valid_projects = []
@@ -153,7 +148,6 @@ def get_projects():
 
 @app.route('/api/projects', methods=['POST'])
 def add_project():
-    """Add a new project"""
     data = request.json
     path = data.get('path', '').strip()
     
@@ -196,7 +190,6 @@ def add_project():
 
 @app.route('/api/projects/clone', methods=['POST'])
 def clone_project():
-    """Clone a Git repository and add it as a project"""
     data = request.json
     clone_path = data.get('clone_path', '').strip()
     repository_url = data.get('repository_url', '').strip()
@@ -276,7 +269,6 @@ def clone_project():
 
 @app.route('/api/projects/<int:project_id>', methods=['DELETE'])
 def delete_project(project_id):
-    """Delete a project"""
     projects = load_projects()
     
     if project_id < 0 or project_id >= len(projects):
@@ -289,7 +281,6 @@ def delete_project(project_id):
 
 @app.route('/api/projects/reorder', methods=['POST'])
 def reorder_projects():
-    """Reorder projects based on an ordered list of project paths"""
     data = request.json or {}
     ordered_paths = data.get('ordered_paths', [])
 
@@ -323,7 +314,6 @@ def reorder_projects():
 
 @app.route('/api/projects/<int:project_id>/git-status', methods=['GET'])
 def git_status(project_id):
-    """Get git status and current branch"""
     projects = load_projects()
     
     if project_id < 0 or project_id >= len(projects):
@@ -368,7 +358,6 @@ def git_status(project_id):
 
 @app.route('/api/projects/<int:project_id>/checkout', methods=['POST'])
 def git_checkout(project_id):
-    """Switch to a different branch"""
     projects = load_projects()
     
     if project_id < 0 or project_id >= len(projects):
@@ -412,7 +401,6 @@ def git_checkout(project_id):
 
 @app.route('/api/projects/<int:project_id>/pull', methods=['POST'])
 def git_pull(project_id):
-    """Pull changes from remote"""
     projects = load_projects()
     
     if project_id < 0 or project_id >= len(projects):
@@ -450,7 +438,6 @@ def git_pull(project_id):
 
 @app.route('/api/projects/<int:project_id>/git-remote', methods=['GET'])
 def get_git_remote(project_id):
-    """Get Git remote URL from .git/config"""
     projects = load_projects()
     
     if project_id < 0 or project_id >= len(projects):
@@ -522,9 +509,53 @@ def get_git_remote(project_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/projects/<int:project_id>/open-terminal', methods=['POST'])
+def open_terminal(project_id):
+    projects = load_projects()
+    if project_id < 0 or project_id >= len(projects):
+        return jsonify({'error': 'Project not found'}), 404
+    project_path = projects[project_id]['path']
+    if not os.path.exists(project_path):
+        return jsonify({'error': 'Project path does not exist'}), 404
+    try:
+        if platform.system() == 'Windows':
+            # Prefer PowerShell 7 (pwsh) over Windows PowerShell (powershell)
+            path_escaped = project_path.replace("'", "''")
+            cmd = [
+                None, '-NoExit', '-Command',
+                "Set-Location -LiteralPath '%s'" % path_escaped
+            ]
+            for exe in ('pwsh', 'pwsh.exe', 'powershell', 'powershell.exe'):
+                try:
+                    cmd[0] = exe
+                    subprocess.Popen(cmd, creationflags=CREATE_NEW_CONSOLE)
+                    break
+                except FileNotFoundError:
+                    continue
+            else:
+                return jsonify({'error': 'PowerShell not found (tried pwsh, powershell)'}), 400
+        else:
+            # macOS: Terminal.app with open -a Terminal and run script to cd
+            # Linux: try xterm, gnome-terminal, or xdg-open
+            if platform.system() == 'Darwin':
+                script = 'tell application "Terminal" to do script "cd \'%s\' && exec $SHELL"' % project_path.replace("'", "'\\''")
+                subprocess.Popen(['osascript', '-e', script])
+            else:
+                for term in ['gnome-terminal', 'xterm', 'konsole']:
+                    try:
+                        subprocess.Popen([term, '--working-directory', project_path])
+                        break
+                    except FileNotFoundError:
+                        continue
+                else:
+                    return jsonify({'error': 'No terminal found (tried gnome-terminal, xterm, konsole)'}), 400
+        return jsonify({'message': 'Terminal opened', 'path': project_path}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/api/projects/<int:project_id>/open-cursor', methods=['POST'])
 def open_cursor(project_id):
-    """Open Cursor IDE at the project path"""
     projects = load_projects()
     
     if project_id < 0 or project_id >= len(projects):
@@ -628,7 +659,6 @@ def open_cursor(project_id):
 
 @app.route('/api/open-odoo-config', methods=['POST'])
 def open_odoo_config():
-    """Open Odoo config file in Cursor"""
     settings = load_settings()
     odoo_config_path = settings.get('odoo_config_path')
 
@@ -695,13 +725,11 @@ def open_odoo_config():
 
 @app.route('/api/settings/odoo-config-path', methods=['GET'])
 def get_odoo_config_path():
-    """Get saved Odoo config path"""
     settings = load_settings()
     return jsonify({'odoo_config_path': settings.get('odoo_config_path')}), 200
 
 @app.route('/api/settings/odoo-config-path', methods=['POST'])
 def set_odoo_config_path():
-    """Set and save Odoo config path"""
     data = request.json or {}
     path = data.get('odoo_config_path', '').strip()
 
@@ -722,7 +750,6 @@ def set_odoo_config_path():
 
 @app.route('/api/path/resolve', methods=['POST'])
 def resolve_path():
-    """Try to resolve a partial path or folder name to full paths"""
     data = request.json
     folder_name = data.get('folder_name', '').strip()
     search_paths = data.get('search_paths', [])
@@ -746,7 +773,6 @@ def resolve_path():
         ]
     
     def search_directory(dir_path, max_depth=2, current_depth=0):
-        """Recursively search for folder"""
         if current_depth >= max_depth or len(found_paths) >= 10:
             return
         

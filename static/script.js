@@ -163,6 +163,10 @@ function showProjectMenu(projectId, event) {
             <span>💻</span>
             <span>Open Cursor</span>
         </div>
+        <div class="menu-item" onclick="openTerminal(${projectId})">
+            <span>⌨️</span>
+            <span>Open Terminal</span>
+        </div>
         ${hasGitRemote ? `
         <div class="menu-item" onclick="openGitRepository(${projectId})">
             <span>🔗</span>
@@ -244,6 +248,28 @@ async function openCursor(projectId) {
     } catch (error) {
         console.error('Error opening Cursor:', error);
         showNotification('Failed to open Cursor', 'error');
+    }
+}
+
+// Open Terminal (PowerShell on Windows) in project directory
+async function openTerminal(projectId) {
+    const menu = document.querySelector('.project-menu-dropdown');
+    if (menu) menu.remove();
+    
+    try {
+        const response = await fetch(`${API_BASE}/projects/${projectId}/open-terminal`, {
+            method: 'POST'
+        });
+        const data = await response.json();
+        
+        if (response.ok) {
+            showNotification('Opening terminal in project...', 'success');
+        } else {
+            showNotification(data.error || 'Failed to open terminal', 'error');
+        }
+    } catch (error) {
+        console.error('Error opening terminal:', error);
+        showNotification('Failed to open terminal', 'error');
     }
 }
 
