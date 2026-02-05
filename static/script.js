@@ -1,6 +1,7 @@
 const API_BASE = 'http://localhost:5000/api';
 
 let currentProjectId = null;
+let currentLinksProjectIndex = null;
 let projects = [];
 let draggingProjectIndex = null;
 
@@ -41,7 +42,7 @@ function renderProjects() {
              ondrop="handleDrop(event, ${index})"
              ondragend="handleDragEnd(event)">
             <div class="project-menu" onclick="event.stopPropagation(); showProjectMenu(${index}, event)">⋯</div>
-            <div class="project-icon">📁</div>
+            <button type="button" class="project-links-icon-btn" onclick="event.stopPropagation(); openLinksModal(${index})" title="Open Links"><span class="project-icon">📁</span></button>
             <div class="project-name">${escapeHtml(project.name)}</div>
             <div class="project-path">${escapeHtml(project.path)}</div>
         </div>
@@ -491,6 +492,96 @@ async function cloneProject(event) {
         console.error('Error cloning project:', error);
         showNotification('Failed to clone project', 'error');
     }
+}
+
+// --- Links (per project, stored in projects.json) ---
+function getProjectLinks(project) {
+    const links = project && project.links;
+    return Array.isArray(links) ? links : [];
+}
+
+function openLinksModal(projectIndex) {
+    currentLinksProjectIndex = projectIndex;
+    const project = projects[projectIndex];
+    if (!project) return;
+    document.getElementById('linkName').value = '';
+    document.getElementById('linkUrl').value = '';
+    document.getElementById('linksModal').style.display = 'block';
+    renderLinksList();
+}
+
+function closeLinksModal() {
+    document.getElementById('linksModal').style.display = 'none';
+    currentLinksProjectIndex = null;
+}
+
+async function saveLinksToServer(links) {
+    const response = await fetch(`${API_BASE}/projects/${currentLinksProjectIndex}/links`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ links })
+    });
+    if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to save links');
+    }
+    return response.json();
+}
+
+async function addLink() {
+    if (currentLinksProjectIndex === null) return;
+    const name = document.getElementById('linkName').value.trim();
+    const url = document.getElementById('linkUrl').value.trim();
+    if (!name || !url) {
+        showNotification('Please enter both link name and URL', 'error');
+        return;
+    }
+    const project = projects[currentLinksProjectIndex];
+    const links = getProjectLinks(project).slice();
+    links.push({ name, url });
+    try {
+        await saveLinksToServer(links);
+        project.links = links;
+        document.getElementById('linkName').value = '';
+        document.getElementById('linkUrl').value = '';
+        renderLinksList();
+        showNotification('Link added', 'success');
+    } catch (err) {
+        console.error(err);
+        showNotification(err.message || 'Failed to save links', 'error');
+    }
+}
+
+async function removeLink(linkIndex) {
+    if (currentLinksProjectIndex === null) return;
+    const project = projects[currentLinksProjectIndex];
+    const links = getProjectLinks(project).slice();
+    links.splice(linkIndex, 1);
+    try {
+        await saveLinksToServer(links);
+        project.links = links;
+        renderLinksList();
+    } catch (err) {
+        console.error(err);
+        showNotification(err.message || 'Failed to save links', 'error');
+    }
+}
+
+function renderLinksList() {
+    const listEl = document.getElementById('linksList');
+    if (currentLinksProjectIndex === null) return;
+    const project = projects[currentLinksProjectIndex];
+    const links = getProjectLinks(project);
+    if (links.length === 0) {
+        listEl.innerHTML = '<li class="links-empty">No links yet. Add one above.</li>';
+        return;
+    }
+    listEl.innerHTML = links.map((link, i) => `
+        <li class="links-item">
+            <a href="${escapeHtml(link.url)}" target="_blank" rel="noopener noreferrer" class="links-item-name">${escapeHtml(link.name)}</a>
+            <button type="button" class="links-item-remove" onclick="event.preventDefault(); removeLink(${i})" title="Remove">×</button>
+        </li>
+    `).join('');
 }
 
 // Open project actions modal

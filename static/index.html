@@ -124,6 +124,28 @@
         </div>
     </div>
 
+    <!-- Links Modal (per project) -->
+    <div id="linksModal" class="modal">
+        <div class="modal-content links-modal-content">
+            <span class="close" onclick="closeLinksModal()">&times;</span>
+            <h2>Links</h2>
+            <div class="links-form">
+                <div class="form-row links-form-row">
+                    <div class="form-group form-group-small">
+                        <label for="linkName">Link name</label>
+                        <input type="text" id="linkName" placeholder="e.g. Staging">
+                    </div>
+                    <div class="form-group form-group-small">
+                        <label for="linkUrl">Link URL</label>
+                        <input type="text" id="linkUrl" placeholder="https://...">
+                    </div>
+                </div>
+                <button type="button" class="btn-primary btn-add-link" onclick="addLink()">Add link</button>
+            </div>
+            <ul id="linksList" class="links-list"></ul>
+        </div>
+    </div>
+
     <!-- Odoo Config Path Modal -->
     <div id="odooConfigModal" class="modal">
         <div class="modal-content">

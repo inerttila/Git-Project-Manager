@@ -6,22 +6,19 @@ import subprocess
 import platform
 from pathlib import Path
 
-# Get creation flags for Windows
 if platform.system() == 'Windows':
     CREATE_NO_WINDOW = subprocess.CREATE_NO_WINDOW
-    CREATE_NEW_CONSOLE = 0x00000010  # New console window for terminal
+    CREATE_NEW_CONSOLE = 0x00000010
 else:
     CREATE_NO_WINDOW = 0
     CREATE_NEW_CONSOLE = 0
 
-# Get the directory where this script is located
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 STATIC_DIR = os.path.join(BASE_DIR, 'static')
 
 app = Flask(__name__, static_folder=STATIC_DIR, static_url_path='/static')
 CORS(app)
 
-# File to store projects
 PROJECTS_FILE = 'projects.json'
 SETTINGS_FILE = 'settings.json'
 
@@ -57,7 +54,6 @@ def get_git_remote_url(project_path):
         return None
     
     try:
-        # Get git remote URL (hide console window on Windows)
         result = subprocess.run(
             ['git', 'remote', 'get-url', 'origin'],
             cwd=project_path,
@@ -68,7 +64,6 @@ def get_git_remote_url(project_path):
         )
         
         if result.returncode != 0:
-            # Try without 'origin', get first remote
             result = subprocess.run(
                 ['git', 'remote', '-v'],
                 cwd=project_path,
@@ -78,10 +73,8 @@ def get_git_remote_url(project_path):
                 creationflags=CREATE_NO_WINDOW
             )
             if result.returncode == 0 and result.stdout:
-                # Extract URL from first line
                 lines = result.stdout.strip().split('\n')
                 if lines:
-                    # Format: "origin  https://gitlab.com/user/repo.git (fetch)"
                     parts = lines[0].split()
                     if len(parts) >= 2:
                         remote_url = parts[1]
@@ -94,14 +87,11 @@ def get_git_remote_url(project_path):
         else:
             remote_url = result.stdout.strip()
         
-        # Convert SSH URL to HTTPS if needed, and ensure it's a web URL
         if remote_url.startswith('git@'):
-            # Convert SSH to HTTPS: git@gitlab.com:user/repo.git -> https://gitlab.com/user/repo
             remote_url = remote_url.replace('git@', 'https://').replace(':', '/')
             if remote_url.endswith('.git'):
                 remote_url = remote_url[:-4]
         elif remote_url.startswith('http'):
-            # Already HTTPS/HTTP, just remove .git if present
             if remote_url.endswith('.git'):
                 remote_url = remote_url[:-4]
         else:
@@ -114,13 +104,11 @@ def get_git_remote_url(project_path):
 
 @app.route('/')
 def index():
-    """Serve the main HTML file"""
     return send_from_directory(STATIC_DIR, 'index.html')
 
 @app.route('/api/projects', methods=['GET'])
 def get_projects():
     projects = load_projects()
-    # Verify projects still exist and get their names
     valid_projects = []
     updated = False
     
@@ -130,31 +118,24 @@ def get_projects():
                 'path': project['path'],
                 'name': get_project_name(project['path'])
             }
-            
-            # Only use existing git_remote_url if it exists, don't fetch again
             if 'git_remote_url' in project:
                 project_data['git_remote_url'] = project['git_remote_url']
-            
+            project_data['links'] = project.get('links', []) if isinstance(project.get('links'), list) else []
             valid_projects.append(project_data)
         else:
-            # Project path doesn't exist, mark for removal
             updated = True
-    
-    # Save updated projects if any were removed
     if updated:
         save_projects(valid_projects)
-    
     return jsonify(valid_projects)
 
 @app.route('/api/projects', methods=['POST'])
 def add_project():
     data = request.json
     path = data.get('path', '').strip()
-    
+
     if not path:
         return jsonify({'error': 'Path is required'}), 400
     
-    # Normalize path
     path = os.path.normpath(path)
     
     if not os.path.exists(path):
@@ -165,11 +146,9 @@ def add_project():
     
     projects = load_projects()
     
-    # Check if project already exists
     if any(p['path'] == path for p in projects):
         return jsonify({'error': 'Project already exists'}), 400
     
-    # Get git remote URL when adding project
     git_remote_url = get_git_remote_url(path)
     
     project_data = {'path': path}
@@ -200,7 +179,6 @@ def clone_project():
     if not repository_url:
         return jsonify({'error': 'Repository URL is required'}), 400
     
-    # Normalize path
     clone_path = os.path.normpath(clone_path)
     
     if not os.path.exists(clone_path):
@@ -209,30 +187,25 @@ def clone_project():
     if not os.path.isdir(clone_path):
         return jsonify({'error': 'Clone path must be a directory'}), 400
     
-    # Extract repository name from URL
     repo_name = repository_url.rstrip('/').split('/')[-1]
     if repo_name.endswith('.git'):
         repo_name = repo_name[:-4]
     
-    # Full path where the repository will be cloned
     project_path = os.path.join(clone_path, repo_name)
     
-    # Check if project already exists
     projects = load_projects()
     if any(p['path'] == project_path for p in projects):
         return jsonify({'error': 'Project already exists'}), 400
     
-    # Check if directory already exists
     if os.path.exists(project_path):
         return jsonify({'error': f'Directory {project_path} already exists'}), 400
     
     try:
-        # Clone the repository
         result = subprocess.run(
             ['git', 'clone', repository_url, project_path],
             capture_output=True,
             text=True,
-            timeout=300,  # 5 minutes timeout
+            timeout=300,
             creationflags=CREATE_NO_WINDOW
         )
         
@@ -242,10 +215,8 @@ def clone_project():
                 'message': result.stderr
             }), 400
         
-        # Get git remote URL (should be the same as what we cloned)
         git_remote_url = get_git_remote_url(project_path)
         
-        # Add project to list
         project_data = {'path': project_path}
         if git_remote_url:
             project_data['git_remote_url'] = git_remote_url
@@ -289,20 +260,17 @@ def reorder_projects():
 
     projects = load_projects()
 
-    # Build lookup by path for stable ordering
     by_path = {p.get('path'): p for p in projects if isinstance(p, dict) and p.get('path')}
 
     reordered = []
     seen = set()
 
-    # Add in requested order (only if path exists in current projects)
     for path in ordered_paths:
         proj = by_path.get(path)
         if proj and path not in seen:
             reordered.append(proj)
             seen.add(path)
 
-    # Append any projects not included (e.g., new ones) to keep them from disappearing
     for proj in projects:
         path = proj.get('path') if isinstance(proj, dict) else None
         if path and path not in seen:
@@ -311,6 +279,30 @@ def reorder_projects():
 
     save_projects(reordered)
     return jsonify({'message': 'Projects reordered'}), 200
+
+@app.route('/api/projects/<int:project_id>/links', methods=['GET', 'PUT'])
+def project_links(project_id):
+    projects = load_projects()
+    if project_id < 0 or project_id >= len(projects):
+        return jsonify({'error': 'Project not found'}), 404
+
+    if request.method == 'GET':
+        links = projects[project_id].get('links', [])
+        if not isinstance(links, list):
+            links = []
+        return jsonify({'links': links})
+
+    data = request.json or {}
+    links = data.get('links', [])
+    if not isinstance(links, list):
+        return jsonify({'error': 'links must be a list'}), 400
+    for item in links:
+        if not isinstance(item, dict) or 'name' not in item or 'url' not in item:
+            return jsonify({'error': 'Each link must have "name" and "url"'}), 400
+    projects[project_id]['links'] = links
+    save_projects(projects)
+    return jsonify({'links': projects[project_id]['links']})
+
 
 @app.route('/api/projects/<int:project_id>/git-status', methods=['GET'])
 def git_status(project_id):
@@ -325,7 +317,6 @@ def git_status(project_id):
         return jsonify({'error': 'Project path does not exist'}), 404
     
     try:
-        # Get current branch
         result = subprocess.run(
             ['git', 'branch', '--show-current'],
             cwd=project_path,
@@ -336,7 +327,6 @@ def git_status(project_id):
         )
         current_branch = result.stdout.strip() if result.returncode == 0 else 'Not a git repository'
         
-        # Get git status
         status_result = subprocess.run(
             ['git', 'status'],
             cwd=project_path,
@@ -449,7 +439,6 @@ def get_git_remote(project_id):
         return jsonify({'error': 'Project path does not exist'}), 404
     
     try:
-        # Get git remote URL
         result = subprocess.run(
             ['git', 'remote', 'get-url', 'origin'],
             cwd=project_path,
@@ -460,7 +449,6 @@ def get_git_remote(project_id):
         )
         
         if result.returncode != 0:
-            # Try without 'origin', get first remote
             result = subprocess.run(
                 ['git', 'remote', '-v'],
                 cwd=project_path,
@@ -470,10 +458,8 @@ def get_git_remote(project_id):
                 creationflags=CREATE_NO_WINDOW
             )
             if result.returncode == 0 and result.stdout:
-                # Extract URL from first line
                 lines = result.stdout.strip().split('\n')
                 if lines:
-                    # Format: "origin  https://gitlab.com/user/repo.git (fetch)"
                     parts = lines[0].split()
                     if len(parts) >= 2:
                         remote_url = parts[1]
@@ -486,14 +472,11 @@ def get_git_remote(project_id):
         else:
             remote_url = result.stdout.strip()
         
-        # Convert SSH URL to HTTPS if needed, and ensure it's a web URL
         if remote_url.startswith('git@'):
-            # Convert SSH to HTTPS: git@gitlab.com:user/repo.git -> https://gitlab.com/user/repo
             remote_url = remote_url.replace('git@', 'https://').replace(':', '/')
             if remote_url.endswith('.git'):
                 remote_url = remote_url[:-4]
         elif remote_url.startswith('http'):
-            # Already HTTPS/HTTP, just remove .git if present
             if remote_url.endswith('.git'):
                 remote_url = remote_url[:-4]
         else:
@@ -519,7 +502,6 @@ def open_terminal(project_id):
         return jsonify({'error': 'Project path does not exist'}), 404
     try:
         if platform.system() == 'Windows':
-            # Prefer PowerShell 7 (pwsh) over Windows PowerShell (powershell)
             path_escaped = project_path.replace("'", "''")
             cmd = [
                 None, '-NoExit', '-Command',
@@ -535,8 +517,6 @@ def open_terminal(project_id):
             else:
                 return jsonify({'error': 'PowerShell not found (tried pwsh, powershell)'}), 400
         else:
-            # macOS: Terminal.app with open -a Terminal and run script to cd
-            # Linux: try xterm, gnome-terminal, or xdg-open
             if platform.system() == 'Darwin':
                 script = 'tell application "Terminal" to do script "cd \'%s\' && exec $SHELL"' % project_path.replace("'", "'\\''")
                 subprocess.Popen(['osascript', '-e', script])
@@ -567,15 +547,11 @@ def open_cursor(project_id):
         return jsonify({'error': 'Project path does not exist'}), 404
     
     try:
-        # Try to open Cursor - common commands for different OS
         import platform
         system = platform.system()
         
         if system == 'Windows':
-            # Try different ways to open Cursor on Windows
-            # Use Popen with shell=True for better Windows compatibility
             try:
-                # Try cursor command first
                 subprocess.Popen(
                     ['cursor', project_path],
                     cwd=project_path,
@@ -588,7 +564,6 @@ def open_cursor(project_id):
                     'command': 'cursor'
                 })
             except FileNotFoundError:
-                # Try VS Code as fallback
                 try:
                     subprocess.Popen(
                         ['code', project_path],
@@ -607,18 +582,17 @@ def open_cursor(project_id):
                     }), 400
             except Exception as e:
                 return jsonify({'error': f'Error opening Cursor: {str(e)}'}), 500
-        elif system == 'Darwin':  # macOS
+        elif system == 'Darwin':
             commands = [
                 ['cursor', project_path],
                 ['open', '-a', 'Cursor', project_path],
             ]
-        else:  # Linux
+        else:
             commands = [
                 ['cursor', project_path],
-                ['code', project_path],  # Fallback
+                ['code', project_path],
             ]
         
-        # Try each command until one works
         last_error = None
         for cmd in commands:
             try:
@@ -631,7 +605,6 @@ def open_cursor(project_id):
                     shell=False,
                     creationflags=CREATE_NO_WINDOW
                 )
-                # If we get here, command executed (even if it failed)
                 return jsonify({
                     'message': f'Opening Cursor at {project_path}',
                     'command': ' '.join(cmd)
@@ -640,7 +613,6 @@ def open_cursor(project_id):
                 last_error = f'Command not found: {cmd[0]}'
                 continue
             except subprocess.TimeoutExpired:
-                # Command is running, that's good
                 return jsonify({
                     'message': f'Opening Cursor at {project_path}',
                     'command': ' '.join(cmd)
@@ -649,7 +621,6 @@ def open_cursor(project_id):
                 last_error = str(e)
                 continue
         
-        # If all commands failed
         return jsonify({
             'error': f'Could not open Cursor. Make sure Cursor is installed and in your PATH. Last error: {last_error}'
         }), 400
@@ -673,7 +644,6 @@ def open_odoo_config():
         system = platform.system()
         
         if system == 'Windows':
-            # Try to open the file in Cursor
             try:
                 subprocess.Popen(
                     ['cursor', odoo_config_path],
@@ -686,7 +656,6 @@ def open_odoo_config():
                     'command': 'cursor'
                 })
             except FileNotFoundError:
-                # Try VS Code as fallback
                 try:
                     subprocess.Popen(
                         ['code', odoo_config_path],
@@ -705,7 +674,6 @@ def open_odoo_config():
             except Exception as e:
                 return jsonify({'error': f'Error opening file: {str(e)}'}), 500
         else:
-            # For macOS and Linux
             try:
                 subprocess.Popen(
                     ['cursor', odoo_config_path],
@@ -736,7 +704,6 @@ def set_odoo_config_path():
     if not path:
         return jsonify({'error': 'odoo_config_path is required'}), 400
 
-    # Normalize path (Windows-friendly)
     path = os.path.normpath(path)
 
     if not os.path.exists(path):
@@ -759,9 +726,7 @@ def resolve_path():
     
     found_paths = []
     
-    # Default search locations if none provided
     if not search_paths:
-        # Common Windows locations
         user_home = os.path.expanduser('~')
         search_paths = [
             user_home,
@@ -780,14 +745,12 @@ def resolve_path():
             if not os.path.exists(dir_path) or not os.path.isdir(dir_path):
                 return
             
-            # Check current directory first
             target_path = os.path.join(dir_path, folder_name)
             if os.path.exists(target_path) and os.path.isdir(target_path):
                 found_paths.append(target_path)
                 if len(found_paths) >= 10:
                     return
             
-            # Only search subdirectories if we haven't found enough
             if current_depth < max_depth - 1:
                 try:
                     items = os.listdir(dir_path)
@@ -805,16 +768,15 @@ def resolve_path():
         except (PermissionError, OSError):
             pass
     
-    # Search in provided paths (limit depth to avoid slow searches)
     for search_path in search_paths:
         if os.path.exists(search_path):
             search_directory(search_path, max_depth=2)
-            if len(found_paths) >= 10:  # Limit results
+            if len(found_paths) >= 10:
                 break
     
     return jsonify({
         'folder_name': folder_name,
-        'found_paths': found_paths[:10]  # Return max 10 results
+        'found_paths': found_paths[:10]
     })
 
 if __name__ == '__main__':
