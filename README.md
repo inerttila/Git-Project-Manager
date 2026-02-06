@@ -26,9 +26,11 @@ A web application to manage multiple Git projects from a single interface. Add y
 - `POST /api/projects` - Add a new project
 - `POST /api/projects/clone` - Clone repository and add as project
 - `DELETE /api/projects/<id>` - Delete a project
+- `GET /api/projects/<id>/links` - Get links for a project
+- `PUT /api/projects/<id>/links` - Update links for a project
 - `GET /api/projects/<id>/git-status` - Get Git status
 - `POST /api/projects/<id>/checkout` - Switch branch
-- `POST /api/projects/<id>/pull` - Pull changes
+- `POST /api/projects/<id>/pull` - Pull chang
 - `POST /api/projects/reorder` - Save card order
 - `GET /api/settings/odoo-config-path` - Get saved Odoo config path
 - `POST /api/settings/odoo-config-path` - Save Odoo config path
