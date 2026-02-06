@@ -578,7 +578,7 @@ function renderLinksList() {
     }
     listEl.innerHTML = links.map((link, i) => `
         <li class="links-item">
-            <a href="${escapeHtml(link.url)}" target="_blank" rel="noopener noreferrer" class="links-item-name">${escapeHtml(link.name)}</a>
+            <a href="${escapeHtml(normalizeLinkUrl(link.url))}" target="_blank" rel="noopener noreferrer" class="links-item-name">${escapeHtml(link.name)}</a>
             <button type="button" class="links-item-remove" onclick="event.preventDefault(); removeLink(${i})" title="Remove">×</button>
         </li>
     `).join('');
@@ -822,4 +822,12 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+// Ensure link URL has a scheme so it opens as absolute URL (not relative to current host)
+function normalizeLinkUrl(url) {
+    if (!url || typeof url !== 'string') return url || '';
+    const u = url.trim();
+    if (u.startsWith('http://') || u.startsWith('https://')) return u;
+    return 'http://' + u;
 }
